@@ -1,0 +1,88 @@
+# Need to integrate with http://bertvv.github.io/notes-to-self/2015/10/05/one-vagrantfile-to-rule-them-all/
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+#  _______               __ __     __           _______ __                    
+# |   _   |.-----.-----.|__|  |--.|  |.-----.  |     __|  |.---.-.--.--.-----.
+# |       ||     |__ --||  |  _  ||  ||  -__|  |__     |  ||  _  |  |  |  -__|
+# |___|___||__|__|_____||__|_____||__||_____|  |_______|__||___._|\___/|_____|
+                                                                            
+# Provision a clean Ubuntu Xenial VM with root-access for Ansible
+# VM is accessible from parent windows machine
+# vagrant shh
+# ssh root@localhost -p 2222 -i ~/.ssh/id_rsa
+# And from an other VirtualBox VM:
+# ssh root@192.168.0.2
+# Path to keys
+#  _______                        ______               ___ __        
+# |   |   |.-----.-----.----.    |      |.-----.-----.'  _|__|.-----.
+# |   |   ||__ --|  -__|   _|    |   ---||  _  |     |   _|  ||  _  |
+# |_______||_____|_____|__|      |______||_____|__|__|__| |__||___  |
+#                                                             |_____|
+# http://www.kammerl.de/ascii/AsciiSignature.php "chunky" font
+private_key_path = File.join(Dir.home, ".ssh", "id_rsa")
+public_key_path = File.join(Dir.home, ".ssh", "id_rsa.pub")
+insecure_key_path = File.join(Dir.home, ".vagrant.d", "insecure_private_key")
+PROXY_ENABLED = true
+
+# Vagrantfile API/syntax version. Don't touch unless you know what you're doing!
+VAGRANTFILE_API_VERSION = "2" if not defined? VAGRANTFILE_API_VERSION
+
+unless Vagrant.has_plugin?("vagrant-proxyconf") or Vagrant.has_plugin?("vagrant-vbguest") or Vagrant.has_plugin?("vagrant-hostsupdater")
+  system("vagrant plugin install vagrant-proxyconf")
+  system("vagrant plugin install vagrant-vbguest")
+  system("vagrant plugin install vagrant-hostsupdater")
+  puts "Dependencies installed, please try the command again."
+  exit
+end
+
+# read the keys
+private_key = IO.read(private_key_path)
+public_key = IO.read(public_key_path)
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.vm.define "ansible-slave" do |slave|
+    slave.vm.box = "ubuntu/xenial64"
+    slave.vm.provider "virtualbox" do |v|
+      v.name = "ansible"
+      v.memory = 1024
+      v.cpus = 1
+      v.customize ["setextradata", :id, "VBoxInternal2/SharedFoldersEnableSymlinksCreate/v-root", "1"]
+    end
+    slave.ssh.insert_key = false
+    slave.ssh.private_key_path = [
+      private_key_path,
+      insecure_key_path # to provision the first time
+    ]
+    slave.vm.hostname = "slave.mc"
+    slave.vm.provision :shell, :inline => <<-SCRIPT
+    set -e
+
+    echo '#{private_key}' > /home/vagrant/.ssh/id_rsa
+    chmod 600 /home/vagrant/.ssh/id_rsa
+    echo '#{public_key}' > /home/vagrant/.ssh/authorized_keys
+    chmod 600 /home/vagrant/.ssh/authorized_keys
+    echo '#{public_key}' > /root/.ssh/authorized_keys
+    chmod 600 /root/.ssh/authorized_keys
+    echo "PermitRootLogin yes" >> /root/.ssh/config
+    echo 'Host 192.168.*.*' >> /root/.ssh/config
+    echo 'StrictHostKeyChecking no' >> /root/.ssh/config
+    echo 'UserKnownHostsFile /dev/null' >> /root/.ssh/config
+    chmod -R 600 /root/.ssh/config
+    SCRIPT
+  
+    slave.vm.network "private_network", ip: "192.168.0.2"
+    if PROXY_ENABLED == true
+      if Vagrant.has_plugin?("vagrant-proxyconf")
+        config.proxy.http     = "http://10.0.2.2:3128/"
+        config.proxy.https    = "http://10.0.2.2:3128/"
+        config.proxy.no_proxy = "localhost,127.0.0.1,192.168.1.32,10.0.2.15,192.168.0.1"
+      end
+    end
+    slave.vm.post_up_message = <<-MESSAGE
+      All done!
+      vagrant ssh; 
+      ssh root@localhost -p 2222 -i ~/.ssh/id_rsa # from localhost
+      ssh root@192.168.0.2 # from VirtualBox VM
+    MESSAGE
+  end
+end
