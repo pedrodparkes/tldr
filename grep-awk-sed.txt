@@ -1,0 +1,6 @@
+grep json or other that appear between two patterns, remove quates, look for value
+
+cf env tsic-mileage-service-tsic-micro-dev-new | awk '/^System-Provided:$/{flag=1;next}/^User-Provided:$/{flag=0}flag' | sed  -n '/application_uris/{n;p}' | tr -d '"'  
+
+
+cf env tsic-mileage-service-tsic-micro-dev-new | sed  -n '/application_uris/{n;p}' | tr -d '"' 

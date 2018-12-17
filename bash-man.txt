@@ -1,0 +1,5 @@
+pushd /path/ 		-- add dir and jump to it
+pushd				-- jump back or betwee
+popd				-- remove current from dirlist and jump back
+dirs -p 			-- show dirs
+dirs -c 			-- clear dirlist

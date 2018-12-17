@@ -1,0 +1,22 @@
+ansible --syntax-check
+ansible --list-hosts <groupname>
+ansible -C, --check  # don’t make any changes; instead, try to predict some of the changes that may occur
+ansible -D, --diff  # when changing (small) files and templates, show the differences in those files; works great with –check
+ansible -e, --extra-vars  # set additional variables as key=value or YAML/JSON, if filename prepend with @
+
+
+ansible-config [view|dump|list]
+ansible-config dump --only-changed  # Only show configurations that have changed from the default
+
+
+ansible-console [<host-pattern>] [options]
+ansible-console --step  # one-step-at-a-time: confirm each task before running
+ansible-console --syntax-check  # perform a syntax check on the playbook, but do not execute it
+ansible-console -C, --check  #don’t make any changes; instead, try to predict some of the changes that may occur
+ansible-console -D, --diff  # when changing (small) files and templates, show the differences in those files; works great with –check
+ansible-console -i, --inventory, --inventory-file  # specify inventory host path or comma separated host list. –inventory-file is deprecated
+
+
+ansible-doc [-l|-F|-s] [options] [-t <plugin type> ] [plugin]
+ansible-doc -s <module_name>  # Show playbook snippet for specified plugin(s)
+
